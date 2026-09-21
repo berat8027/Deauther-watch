@@ -1,100 +1,114 @@
 # Deauther Watch v2.0 — ESP32-S3 SuperMini Smartwatch & BadUSB Multi-Tool
 
-**Deauther Watch v2.0** is an advanced wearable wireless security research device and BadUSB HID payload injection tool built on the **ESP32-S3 SuperMini** board. 
-
-It combines Wi-Fi security auditing, BLE/Bluetooth scanning and jamming, nRF24 2.4GHz spectrum testing, BadUSB execution with native **Turkish Q keyboard layout support**, thermal monitoring, and a real-time digital smartwatch interface into a single compact device.
+**Deauther Watch v2.0** is an advanced wearable wireless security research smartwatch, BadUSB HID payload injector, and dual-radio attack platform built on the **ESP32-S3 SuperMini** board paired with an **ESP-01 (ESP8266)** co-processor and **nRF24L01+** radio module.
 
 ---
 
-## Key Features & Architecture
+## Architecture & Hardware Overview
 
-### BadUSB HID Engine (Turkish Q Keyboard Support)
-- Native USB HID keyboard emulation using hardware CDC / TinyUSB stack.
-- Full **Turkish Q character mapping** (handling special characters like `ğ`, `ü`, `ş`, `ı`, `ö`, `ç`, `İ`, `Ğ`, `Ü`, `Ş`, `Ö`, `Ç`).
-- Automated built-in payloads:
-  - **System Info:** Dumps OS version, hostname, architecture, and RAM in a Windows popup.
-  - **Add Admin User:** Hidden admin user creation with registry stealth settings.
-  - **Wi-Fi Password Extractor:** Extracts all stored Windows Wi-Fi profiles and cleartext passwords into a GUI popup.
-  - **Defender Toggle:** Toggles Windows Defender real-time monitoring via PowerShell.
-  - **AMSI Bypass:** Memory patch bypass for AMSI logging.
-  - **Lock Screen:** Instant Windows workstation lock.
+The watch utilizes a multi-chip architecture to distribute processing load and thermal dissipation:
 
-### Wi-Fi Security Auditing & Sanity Check Bypass
-- **Weak Symbol Override:** Overrides Espressif's internal `ieee80211_raw_frame_sanity_check` to bypass libnet80211 raw frame restriction.
-- **Deauth Frame Injection:** Target-specific or broadcast 802.11 deauthentication attacks.
-- **Handshake Capture:** WPA/WPA2 4-Way Handshake sniffing & status monitor.
-- **Beacon & Probe Flooding:** SSID beacon spamming and probe request flooding.
-- **Packet Monitor & Channel Analyzer:** Real-time 802.11 frame type breakdown and RSSI channel tracking.
-- **Rogue AP & Hidden SSID Reveal:** Rogue access point detection and hidden network name extraction.
-
-### BLE & Bluetooth Classic Engine
-- **BLE Scanner:** BLE advertisement scanning and device classification.
-- **BLE Jammer:** Target-specific BLE device denial of service on BLE advertising channels (37, 38, 39 / 2402MHz, 2426MHz, 2480MHz).
-- **Bluetooth Classic Sweep Jammer:** Full 79-channel spectrum sweep (2402–2480 MHz) at microsecond lock times with pseudorandom noise payload injection.
-
-### nRF24 & ESP-01 Hardware Co-Processing
-- **ESP-01 (ESP8266) UART Slave Integration:** Offloads 802.11 raw deauth frame injection and 2.4GHz BT interference tasks to an external ESP-01 module over UART, preserving ESP32-S3 CPU cycles and reducing thermal load.
-- **Dedicated FSPI Bus:** FSPI bus initialization for nRF24L01+ transceiver control across 2.4GHz spectrum sweep jamming.
-
-### Thermal Safety System
-- Real-time ESP32-S3 internal chip temperature tracking using `esp_temp_sensor`.
-- Automatic thermal throttling: RF modules automatically pause if internal CPU temperature exceeds 75°C, resuming when cooled down to 65°C.
-
-### Smartwatch UI & Timekeeping
-- **128x64 SSD1306 OLED** display with custom font rendering (`dram_font.h`).
-- Real-time digital clock screen with battery level indicator.
-- Automatic BLE time synchronization and manual RTC adjustment.
+- **Primary MCU (ESP32-S3 SuperMini):** Manages the OLED UI, navigation buttons, RTC timekeeping, BLE/Bluetooth Classic operations, BadUSB HID execution, and overall state machine.
+- **Secondary Co-Processor (ESP-01 / ESP8266):** Flashed with **Spacehuhn's `esp8266_deauther_2.6.1_NODEMCU.bin`** firmware. Communicates with ESP32-S3 over UART to offload 802.11 Deauth packet injection and 2.4GHz BT interference without locking the primary MCU.
+- **RF Co-Processor (nRF24L01+):** Operates on custom FSPI (SPI2) for 2.4GHz spectrum sweep jamming, BLE advertising channel disruption, and BT Classic noise injection.
 
 ---
 
-## Hardware Configuration & Pinout
+## Complete Feature Breakdown
 
-### Component List
-- **ESP32-S3 SuperMini Board** (Dual-core Xtensa LX7 @ 240 MHz, 4MB Flash, USB CDC On Boot)
-- **SSD1306 128x64 OLED Display** (I2C)
-- **ESP-01 (ESP8266) Module** (Optional UART Co-processor)
-- **nRF24L01+ Radio Module** (FSPI / SPI2)
-- **3.7V LiPo Battery & Charging Module**
-- **Navigation Buttons** (Up, Down, Select / Enter)
+### 1. BadUSB HID Engine (Turkish Q Keyboard Layout)
+- **Native USB HID Stack:** Uses ESP32-S3 USB-OTG hardware CDC / TinyUSB stack.
+- **Full Turkish Q Mapping:** Full mapping for special Turkish characters (`ğ`, `ü`, `ş`, `ı`, `ö`, `ç`, `İ`, `Ğ`, `Ü`, `Ş`, `Ö`, `Ç`).
+- **Pre-loaded Payloads:**
+  - `SysInfo`: Dumps OS version, hostname, user, architecture, and total RAM via PowerShell in a native GUI dialog box.
+  - `AddAdmin`: Creates a hidden local administrator account (`HiddenOps`) and injects registry stealth keys.
+  - `WiFiPass`: Extracts all stored Windows Wi-Fi SSIDs and cleartext passwords into a popup window.
+  - `DefenderToggle`: Toggles Windows Defender real-time protection.
+  - `AMSIBypass`: Memory patches AMSI (Antimalware Scan Interface) logging in PowerShell.
+  - `LockScreen`: Instantly locks the Windows workstation.
 
-### Pinout Connection Table
+### 2. Wi-Fi Security Auditing & Driver Bypass
+- **Raw Frame Sanity Check Override:** Overrides Espressif's internal `ieee80211_raw_frame_sanity_check` function to allow raw 802.11 frame injection directly from ESP32-S3.
+- **ESP-01 Dual-Radio Offloading:** Sends serial commands to the ESP-01 running `esp8266_deauther_2.6.1` for dedicated deauthentication bursts.
+- **WPA/WPA2 Handshake Sniffer:** Captures 4-Way EAPOL Handshake packets and displays handshake status in real time.
+- **Beacon Spam & Probe Flooding:** Broadcasts custom/random SSID beacon frames and floods probe request packets.
+- **Rogue AP & Hidden Network Reveal:** Detects rogue APs and extracts hidden network SSIDs.
+- **Packet Monitor & Channel Analyzer:** Displays live 802.11 frame types (Management, Control, Data, Deauth) and RSSI channel heatmaps.
 
-| Component | ESP32-S3 SuperMini GPIO | Description / Protocol |
+### 3. BLE & Bluetooth Classic Engine
+- **BLE Scanner:** Scans and classifies nearby BLE advertising devices.
+- **BLE Advertising Jammer:** Targeted jamming on BLE advertising channels 37 (2402 MHz), 38 (2426 MHz), and 39 (2480 MHz).
+- **Bluetooth Classic 79-Channel Sweep Jammer:** Sweeps all 79 BT Classic channels (2402–2480 MHz) with pseudorandom noise payloads to disrupt FHSS connections.
+
+### 4. Thermal Safety & Power Management
+- Internal CPU temperature reading using `esp_temp_sensor`.
+- Automatic thermal throttling: RF modules pause if internal CPU temperature hits **75°C** and automatically resume when cooled down to **65°C**.
+
+### 5. Smartwatch UI & Timekeeping
+- Custom font rendering (`dram_font.h`) on 128x64 SSD1306 OLED.
+- Digital clock face showing time, date, thermal status, and battery percentage.
+- BLE automatic time sync and manual RTC adjustment.
+
+---
+
+## Hardware Pinout & Wiring Table
+
+### Primary Pinout (ESP32-S3 SuperMini)
+
+| Component | ESP32-S3 SuperMini Pin | Description / Protocol |
 |:---|:---|:---|
-| **OLED SDA** | GPIO 8 | I2C Data Line |
-| **OLED SCL** | GPIO 9 | I2C Clock Line (400 kHz) |
-| **ESP-01 TX / RX** | UART (GPIO 20 / 21) | Serial Communication with ESP-01 |
-| **nRF24 SCK** | GPIO 4 | Hardware FSPI Clock |
-| **nRF24 MOSI** | GPIO 5 | Hardware FSPI Master Out Slave In |
-| **nRF24 MISO** | GPIO 6 | Hardware FSPI Master In Slave Out |
+| **OLED SDA** | GPIO 8 | I2C Data (400 kHz) |
+| **OLED SCL** | GPIO 9 | I2C Clock (400 kHz) |
+| **ESP-01 TX** | GPIO 20 (RX1) | Connects to ESP-01 RX |
+| **ESP-01 RX** | GPIO 21 (TX1) | Connects to ESP-01 TX |
+| **nRF24 SCK** | GPIO 4 | FSPI Clock |
+| **nRF24 MOSI** | GPIO 5 | FSPI Master Out Slave In |
+| **nRF24 MISO** | GPIO 6 | FSPI Master In Slave Out |
 | **nRF24 CSN** | GPIO 10 | SPI Chip Select |
 | **nRF24 CE** | GPIO 7 | Chip Enable (Transmit Strobe) |
-| **Button UP** | GPIO 2 | Input Pullup (Navigation Up) |
-| **Button DOWN** | GPIO 3 | Input Pullup (Navigation Down) |
-| **Button SELECT** | GPIO 10 / GPIO 1 | Input Pullup (Select / Mode Enter) |
+| **Button UP** | GPIO 2 | Navigation Up (Input Pullup) |
+| **Button DOWN** | GPIO 3 | Navigation Down (Input Pullup) |
+| **Button SELECT** | GPIO 1 / GPIO 10 | Enter / Select (Input Pullup) |
+
+### ESP-01 (ESP8266) Wiring Table
+
+| ESP-01 Pin | Connection Point | Function |
+|:---|:---|:---|
+| **VCC** | 3.3V Regulator / Battery | Power Input (3.3V) |
+| **GND** | Common GND | Ground |
+| **TX** | ESP32-S3 GPIO 20 (RX1) | UART Serial Data to ESP32 |
+| **RX** | ESP32-S3 GPIO 21 (TX1) | UART Serial Data from ESP32 |
+| **CH_PD / EN**| 3.3V | Chip Enable (High) |
+| **RST** | 3.3V (via 10k resistor) | Reset Line |
+| **GPIO 0** | 3.3V (High for Normal Boot)| Low only during flashing |
 
 ---
 
-## Required Libraries
+## ESP-01 Flashing Instructions
 
-Install via Arduino IDE Library Manager (`Ctrl+Shift+I`):
-- `Adafruit SSD1306` by Adafruit
-- `Adafruit GFX Library` by Adafruit
-- `RF24` by TMRh20
-- `ESP32 Board Package` (includes USB, USBHIDKeyboard, WiFi, BLEDevice, Preferences, esp_wifi)
+The ESP-01 module must be flashed with Spacehuhn's Deauther v2.6.1 firmware prior to assembly:
+
+1. Download binary: [`esp8266_deauther_2.6.1_NODEMCU.bin`](https://github.com/SpacehuhnTech/esp8266_deauther/releases/download/2.6.1/esp8266_deauther_2.6.1_NODEMCU.bin)
+2. Connect ESP-01 to a USB-to-TTL Serial adapter (set GPIO 0 to GND for flash mode).
+3. Use **esptool** or **NodeMCU PyFlasher**:
+   ```bash
+   esptool.py --port COMx --baud 115200 write_flash -fm dio 0x00000 esp8266_deauther_2.6.1_NODEMCU.bin
+   ```
+4. Disconnect GPIO 0 from GND and reboot the ESP-01.
 
 ---
 
-## How to Flash
+## ESP32-S3 Flashing Instructions
 
 1. Open `deauther_watch.ino` in **Arduino IDE 2.x**.
-2. Select Board Settings:
-   - **Board:** `ESP32S3 Dev Module` or `ESP32-S3 SuperMini`
+2. Install required libraries: `Adafruit SSD1306`, `Adafruit GFX`, `RF24`.
+3. Board Settings:
+   - **Board:** `ESP32S3 Dev Module` (or `ESP32-S3 SuperMini`)
    - **USB CDC On Boot:** `Enabled`
-   - **USB Mode:** `Hardware CDC and JTAG` (or `USB-OTG / TinyUSB` for BadUSB execution)
+   - **USB Mode:** `Hardware CDC and JTAG` (or `TinyUSB / USB-OTG` for BadUSB)
    - **Flash Size:** `4MB` (or `8MB`)
    - **CPU Frequency:** `240MHz`
-3. Click **Upload** (`Ctrl+U`).
+4. Click **Upload** (`Ctrl+U`).
 
 ---
 
